@@ -1,0 +1,120 @@
+databases:
+  - name: caye-postgres
+    databaseName: caye_db
+    user: caye_user
+    plan: free
+
+services:
+
+  - type: web
+    name: caye-backend
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash backend/render_start.sh
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: caye-postgres
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      - key: ETHERSCAN_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: COINGLASS_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: APP_ENV
+        value: production
+      - key: APP_DEBUG
+        value: false
+      - key: DEFAULT_BANKROLL
+        value: "10000"
+      - key: MIN_TRADE_SIZE
+        value: "50"
+      - key: MAX_KELLY_FRACTION
+        value: "0.25"
+      - key: CIS_THRESHOLD
+        value: "0.89"
+      - key: PRICE_CEILING
+        value: "0.52"
+      - key: MIN_LIQUIDITY
+        value: "50000"
+      - key: MIN_DAYS_TO_EXPIRY
+        value: "2"
+      - key: SCAN_MARKETS_INTERVAL
+        value: "60"
+      - key: FAST_SIGNALS_INTERVAL
+        value: "300"
+      - key: MEDIUM_SIGNALS_INTERVAL
+        value: "1800"
+      - key: SLOW_SIGNALS_INTERVAL
+        value: "21600"
+      - key: CLEANUP_INTERVAL
+        value: "3600"
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+
+  - type: worker
+    name: caye-celery
+    runtime: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: bash backend/celery_start.sh
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: caye-postgres
+          property: connectionString
+      - key: REDIS_URL
+        sync: false
+      - key: CELERY_BROKER_URL
+        sync: false
+      - key: CELERY_RESULT_BACKEND
+        sync: false
+      - key: ETHERSCAN_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: COINGLASS_API_KEY
+        sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: APP_ENV
+        value: production
+      - key: DEFAULT_BANKROLL
+        value: "10000"
+      - key: CIS_THRESHOLD
+        value: "0.89"
+      - key: PRICE_CEILING
+        value: "0.52"
+      - key: MIN_LIQUIDITY
+        value: "50000"
+      - key: SCAN_MARKETS_INTERVAL
+        value: "60"
+      - key: PYTHONPATH
+        value: /opt/render/project/src
+
+  - type: web
+    name: caye-frontend
+    runtime: static
+    buildCommand: cd frontend && npm install && npm run build
+    staticPublishPath: frontend/build
+    envVars:
+      - key: REACT_APP_API_URL
+        sync: false
+      - key: REACT_APP_WS_URL
+        sync: false
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
