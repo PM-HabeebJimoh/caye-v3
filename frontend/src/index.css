@@ -1,0 +1,94 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ─────────────────────────────────────────
+   CAYE v3.0 — Global Styles
+   Dark theme prediction market dashboard
+───────────────────────────────────────── */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #0a0e1a;
+  color: #e2e8f0;
+  font-family: 'Courier New', Courier, monospace;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #111827;
+}
+::-webkit-scrollbar-thumb {
+  background: #1e2d45;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00d4ff44;
+}
+
+/* Signal active glow */
+.signal-active {
+  box-shadow: 0 0 12px rgba(0, 255, 136, 0.3);
+  border-color: #00ff88 !important;
+}
+
+/* Opportunity card glow */
+.opportunity-card {
+  box-shadow: 0 0 20px rgba(0, 212, 255, 0.1);
+  transition: box-shadow 0.2s ease;
+}
+.opportunity-card:hover {
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.2);
+}
+
+/* CIS progress bar */
+.cis-bar {
+  background: linear-gradient(
+    90deg,
+    #00ff88 0%,
+    #00d4ff 100%
+  );
+  border-radius: 2px;
+  transition: width 0.5s ease;
+}
+
+/* Gate passed indicator */
+.gate-passed {
+  color: #00ff88;
+}
+.gate-failed {
+  color: #ff4444;
+}
+
+/* Engine badge colors */
+.engine-1 { background-color: #7c3aed22; border-color: #7c3aed; }
+.engine-2 { background-color: #dc262622; border-color: #dc2626; }
+.engine-3 { background-color: #d9770622; border-color: #d97706; }
+.engine-4 { background-color: #05966922; border-color: #059669; }
+
+/* Animate new opportunities */
+@keyframes newCard {
+  0%   { transform: translateY(-20px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+.new-opportunity-animation {
+  animation: newCard 0.4s ease-out;
+}
+
+/* Pulse for active signals */
+@keyframes signalPulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.6; }
+}
+.signal-pulse {
+  animation: signalPulse 2s ease-in-out infinite;
+}

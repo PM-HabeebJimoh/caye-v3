@@ -1,0 +1,190 @@
+version: "3.9"
+
+services:
+
+  # ─────────────────────────────────────────
+  # POSTGRESQL DATABASE
+  # ─────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    container_name: caye_postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-caye_db}
+      POSTGRES_USER: ${POSTGRES_USER:-caye_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-caye_pass}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-caye_user} -d ${POSTGRES_DB:-caye_db}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - caye_network
+
+  # ─────────────────────────────────────────
+  # REDIS (Celery broker + cache)
+  # ─────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: caye_redis
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - caye_network
+
+  # ─────────────────────────────────────────
+  # FASTAPI BACKEND
+  # ─────────────────────────────────────────
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: caye_backend
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-caye_user}:${POSTGRES_PASSWORD:-caye_pass}@postgres:5432/${POSTGRES_DB:-caye_db}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+      - ./alembic:/app/alembic
+      - ./alembic.ini:/app/alembic.ini
+    networks:
+      - caye_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # ─────────────────────────────────────────
+  # CELERY WORKER
+  # ─────────────────────────────────────────
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: caye_celery_worker
+    restart: unless-stopped
+    command: celery -A backend.celery_app worker --loglevel=info --concurrency=4
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-caye_user}:${POSTGRES_PASSWORD:-caye_pass}@postgres:5432/${POSTGRES_DB:-caye_db}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./backend:/app/backend
+    networks:
+      - caye_network
+
+  # ─────────────────────────────────────────
+  # CELERY BEAT SCHEDULER
+  # ─────────────────────────────────────────
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: caye_celery_beat
+    restart: unless-stopped
+    command: celery -A backend.celery_app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-caye_user}:${POSTGRES_PASSWORD:-caye_pass}@postgres:5432/${POSTGRES_DB:-caye_db}
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      celery_worker:
+        condition: service_started
+    volumes:
+      - ./backend:/app/backend
+    networks:
+      - caye_network
+
+  # ─────────────────────────────────────────
+  # CELERY FLOWER (Task Monitor)
+  # ─────────────────────────────────────────
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: caye_flower
+    restart: unless-stopped
+    command: celery -A backend.celery_app flower --port=5555
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-caye_user}:${POSTGRES_PASSWORD:-caye_pass}@postgres:5432/${POSTGRES_DB:-caye_db}
+      REDIS_URL: redis://redis:6379/0
+    ports:
+      - "5555:5555"
+    depends_on:
+      - celery_worker
+    networks:
+      - caye_network
+
+  # ─────────────────────────────────────────
+  # REACT FRONTEND
+  # ─────────────────────────────────────────
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: caye_frontend
+    restart: unless-stopped
+    environment:
+      REACT_APP_API_URL: http://localhost:8000
+      REACT_APP_WS_URL: ws://localhost:8000/ws
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    volumes:
+      - ./frontend/src:/app/src
+    networks:
+      - caye_network
+
+# ─────────────────────────────────────────
+# VOLUMES
+# ─────────────────────────────────────────
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+
+# ─────────────────────────────────────────
+# NETWORKS
+# ─────────────────────────────────────────
+networks:
+  caye_network:
+    driver: bridge
