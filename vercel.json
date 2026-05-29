@@ -1,0 +1,18 @@
+{
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "env": {
+    "REACT_APP_API_URL": "https://caye-backend-pm-habeebjimohs-projects.koyeb.app",
+    "REACT_APP_WS_URL": "wss://caye-backend-pm-habeebjimohs-projects.koyeb.app/ws"
+  },
+  "build": {
+    "env": {
+      "REACT_APP_API_URL": "https://caye-backend-pm-habeebjimohs-projects.koyeb.app",
+      "REACT_APP_WS_URL": "wss://caye-backend-pm-habeebjimohs-projects.koyeb.app/ws"
+    }
+  }
+}
